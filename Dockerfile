@@ -1,14 +1,14 @@
 # Use official OpenJDK image
 FROM openjdk:17-jdk-slim
 
-# Set working directory
+# Set working directory inside container
 WORKDIR /app
 
-# Copy the jar file into the container
-COPY target/VertualAssistance-0.0.1-SNAPSHOT.jar app.jar
+# Copy everything
+COPY . .
 
-# Expose port (Spring Boot default)
-EXPOSE 8080
+# Build the application
+RUN ./mvnw clean package -DskipTests
 
 # Run the app
-ENTRYPOINT ["java", "-jar", "app.jar"]
+CMD ["java", "-jar", "target/VertualAssistance-0.0.1-SNAPSHOT.jar"]
