@@ -5,6 +5,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.MailException;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -24,6 +25,7 @@ public class EmailService {
      * @param toEmail The recipient's email address.
      * @param name The user's name.
      */
+    @Async
     public void sendUserConfirmationEmail(String toEmail, String name) {
         SimpleMailMessage message = new SimpleMailMessage();
         message.setFrom(fromEmail);
@@ -45,6 +47,7 @@ public class EmailService {
      * Sends an email to the admin with the form submission details.
      * @param submission The FormSubmissionDto containing all details.
      */
+    @Async
     public void sendAdminNotificationEmail(FormSubmissionDto submission) {
         SimpleMailMessage message = new SimpleMailMessage();
         message.setFrom(fromEmail);
