@@ -11,6 +11,8 @@ import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Service
 public class EmailService {
@@ -24,8 +26,8 @@ public class EmailService {
     @Value("${app.admin.email}")
     private String adminEmail; // The admin email address
     
-    
-    private final Map<String, String> otpStorage = new HashMap<>();
+    private static final Logger logger = LoggerFactory.getLogger(EmailService.class);
+    private final Map<String, OtpDetails> otpStorage = new HashMap<>();
 
     /**
      * Sends a confirmation email to the user.
@@ -101,13 +103,14 @@ public class EmailService {
                       + "Best regards,\nYour Company Team");
         try {
             mailSender.send(message);
-            otpStorage.put(toEmail, otp); // Store OTP temporarily
-            System.out.println("OTP sent to: " + toEmail);
+            otpStorage.put(toEmail, new OtpDetails(otp, System.currentTimeMillis()));
+            logger.info("OTP sent to: {}", toEmail); // Use logger
             return otp;
         } catch (MailException e) {
-            System.err.println("Error sending OTP email to " + toEmail + ": " + e.getMessage());
-            // Log the error more robustly
-            return null;
+            logger.error("Error sending OTP email to {}: {}", toEmail, e.getMessage(), e); // Log full stack trace
+            // You could rethrow a custom exception here if you want specific error handling upstream
+            // throw new CustomEmailSendException("Failed to send OTP email", e);
+            return null; // Keep returning null if controller expects it
         }
     }
 
@@ -118,11 +121,24 @@ public class EmailService {
      * @return True if OTP matches, false otherwise.
      */
     public boolean verifyOtp(String email, String otp) {
-        String storedOtp = otpStorage.get(email);
-        if (storedOtp != null && storedOtp.equals(otp)) {
-            otpStorage.remove(email); // Invalidate OTP after successful verification
-            return true;
+        OtpDetails storedDetails = otpStorage.get(email);
+        if (storedDetails != null && storedDetails.getOtp().equals(otp)) {
+            // Check expiration (e.g., 5 minutes = 300,000 milliseconds)
+            if (System.currentTimeMillis() - storedDetails.getTimestamp() <= 300000) { // 5 minutes
+                otpStorage.remove(email); // Invalidate OTP after successful verification
+                return true;
+            }
+        }
+        // If OTP doesn't match, is null, or expired, remove it to prevent brute-force
+        if (storedDetails != null) {
+            otpStorage.remove(email);
+            logger.warn("OTP for {} either expired or was incorrect. Removed from storage.", email);
+        } else {
+            logger.warn("Attempt to verify non-existent or already used OTP for {}", email);
         }
         return false;
     }
+
+
+
 }
