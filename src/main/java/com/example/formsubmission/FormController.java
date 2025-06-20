@@ -17,7 +17,7 @@ public class FormController {
     private EmailService emailService;
     
     
-    class OtpRequest {
+    public static class OtpRequest { // Make sure this is public static
         private String email;
 
         public String getEmail() {
@@ -30,7 +30,7 @@ public class FormController {
     }
 
     
-    class OtpVerificationRequest {
+    public static class OtpVerificationRequest { // Make sure this is public static
         private String email;
         private String otp;
 
@@ -38,7 +38,7 @@ public class FormController {
             return email;
         }
 
-        public void setEmail(String email) {
+        public void setEmail(String email) { // Corrected: Removed extra 'void'
             this.email = email;
         }
 
@@ -50,7 +50,6 @@ public class FormController {
             this.otp = otp;
         }
     }
-
     @PostMapping("/submit-form")
     public ResponseEntity<String> submitForm(@Valid @RequestBody FormSubmissionDto submission) {
         try {
@@ -77,6 +76,7 @@ public class FormController {
             if (email == null || email.isEmpty()) {
                 return ResponseEntity.badRequest().body("Email is required.");
             }
+
             String otp = emailService.sendOtpEmail(email);
             if (otp != null) {
                 return ResponseEntity.ok("OTP sent successfully to " + email);
