@@ -1,5 +1,9 @@
 package com.example.formsubmission;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Random;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.MailException;
@@ -19,6 +23,9 @@ public class EmailService {
 
     @Value("${app.admin.email}")
     private String adminEmail; // The admin email address
+    
+    
+    private final Map<String, String> otpStorage = new HashMap<>();
 
     /**
      * Sends a confirmation email to the user.
@@ -69,5 +76,53 @@ public class EmailService {
             System.err.println("Error sending admin notification email: " + e.getMessage());
             // Log the error more robustly
         }
+    }
+    
+    private String generateOtp() {
+        Random random = new Random();
+        int otp = 100000 + random.nextInt(900000); // Generates a 6-digit number
+        return String.valueOf(otp);
+    }
+
+    /**
+     * Sends an OTP to the specified email address and stores it temporarily.
+     * @param toEmail The recipient's email address.
+     * @return The generated OTP.
+     */
+    @Async
+    public String sendOtpEmail(String toEmail) {
+        String otp = generateOtp();
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setFrom(fromEmail);
+        message.setTo(toEmail);
+        message.setSubject("Your OTP for Verification");
+        message.setText("Your One-Time Password (OTP) is: " + otp + "\n\n"
+                      + "This OTP is valid for 5 minutes. Please do not share it with anyone.\n\n"
+                      + "Best regards,\nYour Company Team");
+        try {
+            mailSender.send(message);
+            otpStorage.put(toEmail, otp); // Store OTP temporarily
+            System.out.println("OTP sent to: " + toEmail);
+            return otp;
+        } catch (MailException e) {
+            System.err.println("Error sending OTP email to " + toEmail + ": " + e.getMessage());
+            // Log the error more robustly
+            return null;
+        }
+    }
+
+    /**
+     * Verifies the provided OTP against the stored OTP for the given email.
+     * @param email The email address for which OTP was sent.
+     * @param otp The OTP to verify.
+     * @return True if OTP matches, false otherwise.
+     */
+    public boolean verifyOtp(String email, String otp) {
+        String storedOtp = otpStorage.get(email);
+        if (storedOtp != null && storedOtp.equals(otp)) {
+            otpStorage.remove(email); // Invalidate OTP after successful verification
+            return true;
+        }
+        return false;
     }
 }
