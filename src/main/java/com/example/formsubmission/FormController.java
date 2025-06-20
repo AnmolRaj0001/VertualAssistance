@@ -1,6 +1,10 @@
 package com.example.formsubmission;
 
 import jakarta.validation.Valid;
+
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -77,19 +81,34 @@ public class FormController {
                 return ResponseEntity.badRequest().body("Email is required.");
             }
 
-            String otp = emailService.sendOtpEmail(email);
+            // Call async method and get the Future
+            CompletableFuture<String> otpFuture = emailService.sendOtpEmail(email);
+            
+            // Wait for the Future to complete and get the result
+            String otp = otpFuture.get(); // This will block until the async method finishes
+
             if (otp != null) {
                 return ResponseEntity.ok("OTP sent successfully to " + email);
             } else {
                 return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to send OTP.");
             }
+        } catch (InterruptedException e) {
+            // Handle interruption if the current thread is interrupted while waiting
+            Thread.currentThread().interrupt(); // Restore the interrupted status
+            System.err.println("Error sending OTP (interrupted): " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                                 .body("Error sending OTP: " + e.getMessage());
+        } catch (ExecutionException e) {
+            // Handle exceptions that occurred during the execution of the async task
+            System.err.println("Error sending OTP (execution): " + e.getCause().getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                                 .body("Error sending OTP: " + e.getCause().getMessage());
         } catch (Exception e) {
             System.err.println("Error sending OTP: " + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                                  .body("Error sending OTP: " + e.getMessage());
         }
     }
-
     @PostMapping("/verify-otp")
     public ResponseEntity<String> verifyOtp(@RequestBody OtpVerificationRequest verificationRequest) {
         try {

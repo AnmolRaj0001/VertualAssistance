@@ -3,6 +3,7 @@ package com.example.formsubmission;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
+import java.util.concurrent.CompletableFuture;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -91,8 +92,8 @@ public class EmailService {
      * @param toEmail The recipient's email address.
      * @return The generated OTP.
      */
-    @Async
-    public String sendOtpEmail(String toEmail) {
+    @Async // Keep @Async, but change return type
+    public CompletableFuture<String> sendOtpEmail(String toEmail) { // Changed return type
         String otp = generateOtp();
         SimpleMailMessage message = new SimpleMailMessage();
         message.setFrom(fromEmail);
@@ -104,13 +105,12 @@ public class EmailService {
         try {
             mailSender.send(message);
             otpStorage.put(toEmail, new OtpDetails(otp, System.currentTimeMillis()));
-            logger.info("OTP sent to: {}", toEmail); // Use logger
-            return otp;
+            logger.info("OTP sent to: {}", toEmail);
+            return CompletableFuture.completedFuture(otp); // Return a completed CompletableFuture
         } catch (MailException e) {
-            logger.error("Error sending OTP email to {}: {}", toEmail, e.getMessage(), e); // Log full stack trace
-            // You could rethrow a custom exception here if you want specific error handling upstream
-            // throw new CustomEmailSendException("Failed to send OTP email", e);
-            return null; // Keep returning null if controller expects it
+            logger.error("Error sending OTP email to {}: {}", toEmail, e.getMessage(), e);
+            // Return an exceptionally completed CompletableFuture
+            return CompletableFuture.supplyAsync(() -> null); // Returns a null future if sending fails
         }
     }
 
